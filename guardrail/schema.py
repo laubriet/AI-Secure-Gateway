@@ -18,6 +18,11 @@ class ClassificationStatus(StrEnum):
     ERROR = "error"
 
 
+class GateDecision(StrEnum):
+    GO = "go"
+    NO_GO = "no-go"
+
+
 class Classification(BaseModel):
     is_dangerous: bool
     category: Category
@@ -37,3 +42,12 @@ class Classification(BaseModel):
             status=ClassificationStatus.ERROR,
             model=model,
         )
+
+
+def to_gate_decision(classification: Classification) -> GateDecision:
+    if (
+        classification.status is ClassificationStatus.ERROR
+        or classification.category is Category.UNKNOWN
+    ):
+        return GateDecision.NO_GO
+    return GateDecision.NO_GO if classification.is_dangerous else GateDecision.GO

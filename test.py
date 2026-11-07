@@ -1,4 +1,6 @@
-from guardrail import build_guardrail_graph, decide_policy
+from guardrail import build_guardrail_graph
+from guardrail.schema import to_gate_decision
+from guardrail.simulator import LocalLLMSimulator
 
 
 if __name__ == "__main__":
@@ -6,6 +8,7 @@ if __name__ == "__main__":
     graph = build_guardrail_graph()
     result = graph.invoke({"prompt": prompt})
     classification = result["classification"]
-
-    print(classification.model_dump_json(indent=2))
-    print(f"policy_decision={decide_policy(classification)}")
+    decision = to_gate_decision(classification)
+    print(decision.value)
+    if decision.value == "go":
+        print(LocalLLMSimulator().respond(prompt))

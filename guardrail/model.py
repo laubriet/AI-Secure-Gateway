@@ -1,9 +1,56 @@
 import os
 
+from laya import Router
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
 from .schema import Classification
+from .schema import Category
+
+LAYA_QUESTIONS = {
+    "dangerous": {
+        "type": "noul",
+        "instructions": "Does this prompt request dangerous or unauthorized action?",
+    }
+}
+
+
+class LayaGate:
+    def __init__(self) -> None:
+        self.threshold = float(os.getenv("LAYA_DANGER_THRESHOLD", "0.80"))
+        self.router = Router(preload=os.getenv("LAYA_PRELOAD", "0") == "1")
+
+    def classify(self, prompt: str) -> Classification:
+        try:
+            result = self.router.predict(
+                {"body": prompt},
+                LAYA_QUESTIONS,
+                min_confidence=self.threshold,
+            )
+            answer = result["dangerous"]
+            dangerous_probability = float(answer["noul"])
+            confidence = max(dangerous_probability, 1.0 - dangerous_probability)
+            if confidence < self.threshold:
+                return Classification(
+                    is_dangerous=False,
+                    category=Category.UNKNOWN,
+                    confidence=confidence,
+                    reason="laya_uncertain",
+                    model="laya",
+                )
+            return Classification(
+                is_dangerous=dangerous_probability >= 0.5,
+                category=(
+                    Category.PROMPT_INJECTION
+                    if dangerous_probability >= 0.5
+                    else Category.BENIGN
+                ),
+                confidence=confidence,
+                reason="laya_gate",
+                model="laya",
+            )
+        except Exception as exc:
+            return Classification.error("laya", f"Laya unavailable: {exc}")
 
 SYSTEM_PROMPT = """
 You are a prompt safety classifier. Analyze only the user text.
