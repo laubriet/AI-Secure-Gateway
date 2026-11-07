@@ -1,0 +1,5 @@
+laya
+langchain-core
+langchain-ollama
+langgraph
+pydantic>=2
